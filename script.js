@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function handleMove(row, col) {
         const piece = board[row][col];
-        
+
         if (playerTurn && !selectedPiece) {
             if (piece && isPlayerPiece(piece)) {
                 selectedPiece = { row, col };
@@ -66,60 +66,31 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
 
                 makeMove(selectedPiece.row, selectedPiece.col, row, col);
+                clearSelection();
+                drawBoard();
                 postMoveActions();
                 setTimeout(botMove, 500);
-            }
-            clearSelection();
-        }
-    }
-
-    function getValidMoves(row, col, piece) {
-        const moves = [];
-        const directions = {
-            '♙': [[-1, 0], [-2, 0], [-1, -1], [-1, 1]],
-            '♟': [[1, 0], [2, 0], [1, -1], [1, 1]],
-            '♘': [[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]],
-            '♗': [[1,1],[2,2],[3,3],[4,4],[5,5],[6,6],[7,7],
-                  [-1,-1],[-2,-2],[-3,-3],[-4,-4],[-5,-5],[-6,-6],[-7,-7],
-                  [1,-1],[2,-2],[3,-3],[4,-4],[5,-5],[6,-6],[7,-7],
-                  [-1,1],[-2,2],[-3,3],[-4,4],[-5,5],[-6,6],[-7,7]],
-            '♖': [[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7],
-                  [0,-1],[0,-2],[0,-3],[0,-4],[0,-5],[0,-6],[0,-7],
-                  [1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],
-                  [-1,0],[-2,0],[-3,0],[-4,0],[-5,0],[-6,0],[-7,0]],
-            '♕': [...directions['♗'], ...directions['♖']],
-            '♔': [[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]]
-        };
-
-        for (let [dr, dc] of directions[piece]) {
-            const newRow = row + dr;
-            const newCol = col + dc;
-            
-            if (newRow >= 0 && newRow < 8 && newCol >= 0 && newCol < 8) {
-                const targetPiece = board[newRow][newCol];
-                
-                if (targetPiece === "") {
-                    if (piece === '♙' && dr === -2 && row !== 6) continue;
-                    if (piece === '♟' && dr === 2 && row !== 1) continue;
-                    moves.push({row: newRow, col: newCol});
-                } else if (isEnemyPiece(piece, targetPiece)) {
-                    if (piece === '♙' && Math.abs(dc) === 1) moves.push({row: newRow, col: newCol});
-                    else if (piece !== '♙' && piece !== '♟') moves.push({row: newRow, col: newCol});
-                }
+            } else {
+                clearSelection();
             }
         }
-        return moves;
     }
 
     function makeMove(fromRow, fromCol, toRow, toCol) {
         const piece = board[fromRow][fromCol];
         board[toRow][toCol] = piece;
         board[fromRow][fromCol] = "";
-        
-        // Animasi
+
         const targetSquare = document.querySelector(`[data-row="${toRow}"][data-col="${toCol}"]`);
-        targetSquare.classList.add('animated-move');
-        setTimeout(() => targetSquare.classList.remove('animated-move'), 300);
+        if (targetSquare) {
+            targetSquare.classList.add('animated-move');
+            setTimeout(() => {
+                targetSquare.classList.remove('animated-move');
+                drawBoard();
+            }, 300);
+        } else {
+            drawBoard();
+        }
     }
 
     function postMoveActions() {
@@ -133,15 +104,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function botMove() {
+        let moves = getAllValidMoves('bot');
+
+        if (moves.length === 0) {
+            alert("Bot tidak bisa bergerak, pemain menang!");
+            return;
+        }
+
         let bestMove = null;
         let bestScore = -Infinity;
-        const moves = getAllValidMoves('bot');
 
         for (let move of moves) {
             makeMove(move.from.row, move.from.col, move.to.row, move.to.col);
-            const score = minimax(2, false, -Infinity, Infinity);
+            let score = minimax(2, false, -Infinity, Infinity);
             undoMove();
-            
+
             if (score > bestScore) {
                 bestScore = score;
                 bestMove = move;
@@ -200,18 +177,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function evaluateBoard() {
         let score = 0;
-        board.forEach((row, r) => {
-            row.forEach((piece, c) => {
-                score += pieceValues[piece] || 0;
-            });
-        });
+        board.forEach(row => row.forEach(piece => {
+            score += pieceValues[piece] || 0;
+        }));
         return score;
     }
 
     function undoMove() {
         if (moveHistory.length > 0) {
             const lastMove = moveHistory.pop();
-            board[lastMove.from.row][lastMove.from.col] = lastMove.piece;
+            board[lastMove.from.row][lastMove.from.col] = board[lastMove.to.row][lastMove.to.col];
             board[lastMove.to.row][lastMove.to.col] = lastMove.captured || "";
             drawBoard();
         }
@@ -238,9 +213,8 @@ document.addEventListener("DOMContentLoaded", () => {
         return validMoves.some(m => m.row === row && m.col === col);
     }
 
-    function isPlayerPiece(piece) { return Object.keys(pieceValues).includes(piece) && pieceValues[piece] > 0; }
-    function isBotPiece(piece) { return Object.keys(pieceValues).includes(piece) && pieceValues[piece] < 0; }
-    function isEnemyPiece(piece, target) { return isPlayerPiece(piece) ? isBotPiece(target) : isPlayerPiece(target); }
+    function isPlayerPiece(piece) { return pieceValues[piece] > 0; }
+    function isBotPiece(piece) { return pieceValues[piece] < 0; }
 
     drawBoard();
     updateTurn();
