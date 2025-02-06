@@ -70,7 +70,6 @@ document.addEventListener("DOMContentLoaded", () => {
     function makeMove(fromRow, fromCol, toRow, toCol) {
         board[toRow][toCol] = board[fromRow][fromCol];
         board[fromRow][fromCol] = "";
-
         drawBoard();
     }
 
@@ -118,14 +117,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function getValidMoves(row, col, piece) {
         let moves = [];
-        let directions = piece === "♙" ? [[-1, 0]] : piece === "♟" ? [[1, 0]] : [];
+        let directions = [];
 
-        for (let [dr, dc] of directions) {
-            let newRow = row + dr, newCol = col + dc;
-            if (newRow >= 0 && newRow < 8 && newCol >= 0 && newCol < 8 && board[newRow][newCol] === "") {
-                moves.push({ row: newRow, col: newCol });
-            }
+        if (piece === "♙") {
+            if (board[row - 1][col] === "") moves.push({ row: row - 1, col });
+            if (row === 6 && board[row - 2][col] === "") moves.push({ row: row - 2, col });
+            if (board[row - 1]?.[col - 1] && isBotPiece(board[row - 1][col - 1])) moves.push({ row: row - 1, col: col - 1 });
+            if (board[row - 1]?.[col + 1] && isBotPiece(board[row - 1][col + 1])) moves.push({ row: row - 1, col: col + 1 });
+        } else if (piece === "♟") {
+            if (board[row + 1][col] === "") moves.push({ row: row + 1, col });
+            if (row === 1 && board[row + 2][col] === "") moves.push({ row: row + 2, col });
+            if (board[row + 1]?.[col - 1] && isPlayerPiece(board[row + 1][col - 1])) moves.push({ row: row + 1, col: col - 1 });
+            if (board[row + 1]?.[col + 1] && isPlayerPiece(board[row + 1][col + 1])) moves.push({ row: row + 1, col: col + 1 });
         }
+
         return moves;
     }
 
