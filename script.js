@@ -57,8 +57,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
 
                 makeMove(selectedPiece.row, selectedPiece.col, row, col);
+                checkPromotion(row, col);
                 clearSelection();
                 drawBoard();
+                if (isCheckmate("bot")) {
+                    alert("Skakmat! Pemain menang!");
+                    return;
+                }
                 postMoveActions();
                 setTimeout(botMove, 500);
             } else {
@@ -87,13 +92,18 @@ document.addEventListener("DOMContentLoaded", () => {
         let moves = getAllValidMoves('bot');
 
         if (moves.length === 0) {
-            alert("Bot tidak bisa bergerak, pemain menang!");
+            alert("Skakmat! Pemain menang!");
             return;
         }
 
         let bestMove = moves[Math.floor(Math.random() * moves.length)];
         makeMove(bestMove.from.row, bestMove.from.col, bestMove.to.row, bestMove.to.col);
+        checkPromotion(bestMove.to.row, bestMove.to.col);
         moveHistory.push(bestMove);
+        if (isCheckmate("player")) {
+            alert("Skakmat! Bot menang!");
+            return;
+        }
         postMoveActions();
     }
 
@@ -117,7 +127,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function getValidMoves(row, col, piece) {
         let moves = [];
-        let directions = [];
 
         if (piece === "♙") {
             if (board[row - 1][col] === "") moves.push({ row: row - 1, col });
@@ -134,13 +143,13 @@ document.addEventListener("DOMContentLoaded", () => {
         return moves;
     }
 
-    function undoMove() {
-        if (moveHistory.length > 0) {
-            const lastMove = moveHistory.pop();
-            board[lastMove.from.row][lastMove.from.col] = board[lastMove.to.row][lastMove.to.col];
-            board[lastMove.to.row][lastMove.to.col] = lastMove.captured || "";
-            drawBoard();
-        }
+    function checkPromotion(row, col) {
+        if (board[row][col] === "♙" && row === 0) board[row][col] = "♕";
+        if (board[row][col] === "♟" && row === 7) board[row][col] = "♛";
+    }
+
+    function isCheckmate(side) {
+        return getAllValidMoves(side).length === 0;
     }
 
     function highlightMoves(moves) {
@@ -170,5 +179,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     drawBoard();
     updateTurn();
-    undoBtn.addEventListener("click", undoMove);
+    undoBtn.addEventListener("click", () => {
+        if (moveHistory.length > 0) {
+            const lastMove = moveHistory.pop();
+            makeMove(lastMove.to.row, lastMove.to.col, lastMove.from.row, lastMove.from.col);
+        }
+    });
 });
