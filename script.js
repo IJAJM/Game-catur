@@ -8,15 +8,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let moveHistory = [];
     let validMoves = [];
 
-    const pieceValues = {
-        '♙': 10, '♟': -10,
-        '♘': 30, '♞': -30,
-        '♗': 30, '♝': -30,
-        '♖': 50, '♜': -50,
-        '♕': 90, '♛': -90,
-        '♔': 1000, '♚': -1000
-    };
-
     const board = [
         ["♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"],
         ["♟", "♟", "♟", "♟", "♟", "♟", "♟", "♟"],
@@ -60,7 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (selectedPiece) {
             if (isValidMove(row, col)) {
                 moveHistory.push({
-                    from: selectedPiece,
+                    from: { ...selectedPiece },
                     to: { row, col },
                     captured: board[row][col]
                 });
@@ -77,20 +68,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function makeMove(fromRow, fromCol, toRow, toCol) {
-        const piece = board[fromRow][fromCol];
-        board[toRow][toCol] = piece;
+        board[toRow][toCol] = board[fromRow][fromCol];
         board[fromRow][fromCol] = "";
 
-        const targetSquare = document.querySelector(`[data-row="${toRow}"][data-col="${toCol}"]`);
-        if (targetSquare) {
-            targetSquare.classList.add('animated-move');
-            setTimeout(() => {
-                targetSquare.classList.remove('animated-move');
-                drawBoard();
-            }, 300);
-        } else {
-            drawBoard();
-        }
+        drawBoard();
     }
 
     function postMoveActions() {
@@ -111,25 +92,10 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        let bestMove = null;
-        let bestScore = -Infinity;
-
-        for (let move of moves) {
-            makeMove(move.from.row, move.from.col, move.to.row, move.to.col);
-            let score = minimax(2, false, -Infinity, Infinity);
-            undoMove();
-
-            if (score > bestScore) {
-                bestScore = score;
-                bestMove = move;
-            }
-        }
-
-        if (bestMove) {
-            makeMove(bestMove.from.row, bestMove.from.col, bestMove.to.row, bestMove.to.col);
-            moveHistory.push(bestMove);
-            postMoveActions();
-        }
+        let bestMove = moves[Math.floor(Math.random() * moves.length)];
+        makeMove(bestMove.from.row, bestMove.from.col, bestMove.to.row, bestMove.to.col);
+        moveHistory.push(bestMove);
+        postMoveActions();
     }
 
     function getAllValidMoves(side) {
@@ -140,9 +106,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 if ((side === 'bot' && isBotPiece(piece)) || (side === 'player' && isPlayerPiece(piece))) {
                     getValidMoves(row, col, piece).forEach(move => {
                         moves.push({
-                            from: {row, col},
-                            to: move,
-                            piece: piece
+                            from: { row, col },
+                            to: move
                         });
                     });
                 }
@@ -151,36 +116,17 @@ document.addEventListener("DOMContentLoaded", () => {
         return moves;
     }
 
-    function minimax(depth, isMaximizing, alpha, beta) {
-        if (depth === 0) return evaluateBoard();
-        
-        const moves = getAllValidMoves(isMaximizing ? 'bot' : 'player');
-        let bestScore = isMaximizing ? -Infinity : Infinity;
+    function getValidMoves(row, col, piece) {
+        let moves = [];
+        let directions = piece === "♙" ? [[-1, 0]] : piece === "♟" ? [[1, 0]] : [];
 
-        for (let move of moves) {
-            makeMove(move.from.row, move.from.col, move.to.row, move.to.col);
-            const score = minimax(depth - 1, !isMaximizing, alpha, beta);
-            undoMove();
-
-            if (isMaximizing) {
-                bestScore = Math.max(bestScore, score);
-                alpha = Math.max(alpha, score);
-            } else {
-                bestScore = Math.min(bestScore, score);
-                beta = Math.min(beta, score);
+        for (let [dr, dc] of directions) {
+            let newRow = row + dr, newCol = col + dc;
+            if (newRow >= 0 && newRow < 8 && newCol >= 0 && newCol < 8 && board[newRow][newCol] === "") {
+                moves.push({ row: newRow, col: newCol });
             }
-            
-            if (beta <= alpha) break;
         }
-        return bestScore;
-    }
-
-    function evaluateBoard() {
-        let score = 0;
-        board.forEach(row => row.forEach(piece => {
-            score += pieceValues[piece] || 0;
-        }));
-        return score;
+        return moves;
     }
 
     function undoMove() {
@@ -192,16 +138,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    function clearSelection() {
-        selectedPiece = null;
-        validMoves = [];
-        clearHighlights();
-    }
-
     function highlightMoves(moves) {
+        clearHighlights();
         moves.forEach(move => {
-            const square = document.querySelector(`[data-row="${move.row}"][data-col="${move.col}"]`);
-            square?.classList.add('highlight');
+            let square = document.querySelector(`[data-row="${move.row}"][data-col="${move.col}"]`);
+            if (square) square.classList.add('highlight');
         });
     }
 
@@ -213,8 +154,14 @@ document.addEventListener("DOMContentLoaded", () => {
         return validMoves.some(m => m.row === row && m.col === col);
     }
 
-    function isPlayerPiece(piece) { return pieceValues[piece] > 0; }
-    function isBotPiece(piece) { return pieceValues[piece] < 0; }
+    function clearSelection() {
+        selectedPiece = null;
+        validMoves = [];
+        clearHighlights();
+    }
+
+    function isPlayerPiece(piece) { return ["♙", "♘", "♗", "♖", "♕", "♔"].includes(piece); }
+    function isBotPiece(piece) { return ["♟", "♞", "♝", "♜", "♛", "♚"].includes(piece); }
 
     drawBoard();
     updateTurn();
